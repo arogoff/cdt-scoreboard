@@ -9,6 +9,18 @@ body {
     background-attachment: fixed;
     background-position: center;
   }
+
+  .minecraftlogo{
+    height: 100px;
+    justify-self: center;
+    margin: auto auto;
+  }
+
+  .logoholder{
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
   
   main {
     max-width: 1200px;

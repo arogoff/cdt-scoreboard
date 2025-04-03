@@ -577,7 +577,4 @@ function updateCountdownDisplay() {
         autoScanButton.style.backgroundColor = "";
       }
     }
-    
-    // Log countdown to console
-    console.log(`Next scan in: ${minutes}:${seconds.toString().padStart(2, '0')}`);
 }

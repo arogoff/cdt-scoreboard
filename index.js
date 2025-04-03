@@ -279,14 +279,36 @@ function updateBoxElement(boxData) {
             const originalImage = heart.style.backgroundImage;
             const whiteImageUrl = originalImage.replace('.png', '_white.png');
             
-            // Set white version immediately
-            heart.style.backgroundImage = whiteImageUrl;
+            // Create a sequential flash effect (3 times)
+            let flashCount = 0;
+            const maxFlashes = 3;
+            const flashDuration = 200; // milliseconds per flash
             
-            // Set timeout to remove flash and restore original image
-            setTimeout(() => {
-              heart.style.backgroundImage = originalImage;
-              heart.classList.remove('heart-flash');
-            }, 300);
+            // Function to handle a single flash transition
+            const flashHeart = () => {
+              // Toggle between white and original
+              if (flashCount % 2 === 0) {
+                // Set to white version
+                heart.style.backgroundImage = whiteImageUrl;
+              } else {
+                // Set back to original
+                heart.style.backgroundImage = originalImage;
+              }
+              
+              flashCount++;
+              
+              // Continue until we've completed all flashes
+              if (flashCount < maxFlashes * 2) {
+                setTimeout(flashHeart, flashDuration);
+              } else {
+                // Ensure we end with the original image
+                heart.style.backgroundImage = originalImage;
+                heart.classList.remove('heart-flash');
+              }
+            };
+            
+            // Start the flashing sequence
+            flashHeart();
           });
           
           // Replace old health bar with new one

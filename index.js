@@ -110,6 +110,8 @@ const SCORES_ENDPOINT = `${API_BASE_URL}/scores`;
 // Variable to track scanning status
 let isScanning = false;
 let scanTimer = null;
+let countdownTimer = null;
+let nextScanTime = null;
 
 // Function to create Minecraft-style hearts with more granular health representation
 function createHealthBar(healthValue) {
@@ -159,7 +161,6 @@ function createHealthBar(healthValue) {
   }
 
 // Function to create a box element
- // Function to create a box element
  function createBoxElement(boxData) {
     const boxElement = document.createElement('div');
     boxElement.className = 'box';
@@ -454,13 +455,14 @@ function toggleAutoScan() {
     } else {
       // Start automatic scanning
       isScanning = true;
-      autoScanButton.textContent = "60:00"; // Initial countdown display
+      // Set a full minute as the initial countdown display
+      autoScanButton.textContent = "1:00"; 
       autoScanButton.classList.add("active");
       
       // Log to console instead of updating status message
       console.log("Auto-scan started");
       
-      // Set next scan time
+      // Set next scan time to 60 seconds from now
       nextScanTime = new Date(Date.now() + 60000);
       
       // Perform an immediate scan
@@ -549,9 +551,6 @@ function adjustLayout() {
 // Initialize the scoreboard when the page loads
 document.addEventListener('DOMContentLoaded', renderBoxes);
 
-let nextScanTime = null;
-let countdownTimer = null;
-
 // Function to update the countdown timer display
 function updateCountdownDisplay() {
     if (!isScanning || !nextScanTime) {
@@ -561,12 +560,14 @@ function updateCountdownDisplay() {
     const now = new Date();
     const timeRemaining = Math.max(0, nextScanTime - now);
     
-    const seconds = Math.floor((timeRemaining / 1000) % 60);
-    const minutes = Math.floor((timeRemaining / 1000 / 60) % 60);
+    // Calculate minutes and seconds properly
+    const totalSeconds = Math.floor(timeRemaining / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
     
     const autoScanButton = document.getElementById("autoScanButton");
     if (autoScanButton) {
-      // Update the button text to show the countdown
+      // Format properly with leading zeros for seconds
       autoScanButton.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
       
       // Apply warning styling when less than 10 seconds remaining
@@ -579,4 +580,4 @@ function updateCountdownDisplay() {
     
     // Log countdown to console
     console.log(`Next scan in: ${minutes}:${seconds.toString().padStart(2, '0')}`);
-  }
+}

@@ -161,7 +161,9 @@ function createHealthBar(healthValue) {
  function createBoxElement(boxData) {
     const boxElement = document.createElement('div');
     boxElement.className = 'box';
+    boxElement.id = `box-${boxData.box}`; // Set unique ID
     
+    // Rest of the function remains the same
     // Check if box is dead (health is 0 or lower)
     const isDead = parseFloat(boxData.health) <= 0;
     
@@ -216,46 +218,67 @@ function createHealthBar(healthValue) {
 
 // Function to update box data in the DOM
 function updateBoxElement(boxData) {
-  const boxElement = document.getElementById(`box-${boxData.box}`);
-  if (!boxElement) return;
-  
-  // Remove all state classes
-  boxElement.classList.remove('box-up', 'box-down', 'box-dead');
-  
-  // Check if box is dead (health is 0 or lower)
-  const isDead = parseFloat(boxData.health) <= 0;
-  
-  if (isDead) {
-    // Add dead styling to the box
-    boxElement.classList.add('box-dead');
+    // Use correct box ID format, adding 'box-' prefix if not already there
+    const boxId = `box-${boxData.box}`;
+    const boxElement = document.getElementById(boxId);
     
-    // Set state to DEAD regardless of original state
-    boxData.state = "DEAD";
-  } else {
-    // Add state-based styling to the box (only if not dead)
-    boxElement.classList.add(`box-${boxData.state.toLowerCase()}`);
+    if (!boxElement) {
+      console.warn(`Box element with ID ${boxId} not found`);
+      return;
+    }
+    
+    // Remove all state classes
+    boxElement.classList.remove('box-up', 'box-down', 'box-dead');
+    
+    // Check if box is dead (health is 0 or lower)
+    const isDead = parseFloat(boxData.health) <= 0;
+    
+    if (isDead) {
+      // Add dead styling to the box
+      boxElement.classList.add('box-dead');
+      
+      // Set state to DEAD regardless of original state
+      boxData.state = "DEAD";
+    } else {
+      // Add state-based styling to the box (only if not dead)
+      boxElement.classList.add(`box-${boxData.state.toLowerCase()}`);
+    }
+    
+    // Update state indicator
+    const stateIndicator = boxElement.querySelector('.state-indicator');
+    if (stateIndicator) {
+      stateIndicator.className = `state-indicator state-${boxData.state.toLowerCase()}`;
+      stateIndicator.textContent = boxData.state;
+    }
+    
+    // Update health bar
+    const bottomInfo = boxElement.querySelector('.box-info-bottom');
+    if (bottomInfo) {
+      const oldHealthBar = bottomInfo.querySelector('.health');
+      if (oldHealthBar) {
+        const newHealthBar = createHealthBar(boxData.health);
+        bottomInfo.replaceChild(newHealthBar, oldHealthBar);
+      }
+      
+      // Update service and IP info
+      const serviceIP = bottomInfo.querySelector('.service-ip p');
+      if (serviceIP) {
+        serviceIP.textContent = `${boxData.service} - ${boxData.ip}`;
+      }
+    }
   }
-  
-  // Update state indicator
-  const stateIndicator = boxElement.querySelector('.state-indicator');
-  stateIndicator.className = `state-indicator state-${boxData.state.toLowerCase()}`;
-  stateIndicator.textContent = boxData.state;
-  
-  // Update health bar
-  const bottomInfo = boxElement.querySelector('.box-info-bottom');
-  const oldHealthBar = bottomInfo.querySelector('.health');
-  const newHealthBar = createHealthBar(boxData.health);
-  bottomInfo.replaceChild(newHealthBar, oldHealthBar);
-  
-  // Update service and IP info
-  const serviceIP = bottomInfo.querySelector('.service-ip');
-  serviceIP.textContent = `${boxData.service} - ${boxData.ip}`;
-}
 
 // Function to fetch scores data and update the UI
 async function fetchScoresAndUpdateUI() {
   try {
-    const response = await fetch(SCORES_ENDPOINT);
+    const response = await fetch(SCORES_ENDPOINT, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     if (!response.ok) {
       throw new Error(`Network response was not ok: ${response.status}`);
     }
@@ -288,35 +311,48 @@ async function fetchScoresAndUpdateUI() {
 
 // Function to perform a scan
 async function performScan() {
-  try {
-    updateStatusMessage("Scanning...");
-    
-    const response = await fetch(SCAN_ENDPOINT);
-    if (!response.ok) {
-      throw new Error(`Network response was not ok: ${response.status}`);
-    }
-    const data = await response.json();
-    
-    if (data.error) {
-      // Competition hasn't started
-      updateStatusMessage(`Scan result: ${data.error}`, false);
+    try {
+      updateStatusMessage("Scanning...");
+      
+      const response = await fetch(SCAN_ENDPOINT, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.status}`);
+      }
+      const data = await response.json();
+      
+      if (data.error) {
+        // Competition hasn't started
+        updateStatusMessage(`Scan result: ${data.error}`, false);
+        return false;
+      }
+      
+      if (data.message && data.message === "Scan Complete!") {
+        updateStatusMessage("Scan completed successfully");
+        
+        // If auto-scanning is active, reset the next scan time
+        if (isScanning) {
+          nextScanTime = new Date(Date.now() + 60000);
+        }
+        
+        // Fetch new scores since the scan was successful
+        await fetchScoresAndUpdateUI();
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      updateStatusMessage(`Error during scan: ${error.message}`, true);
+      console.error("Error during scan:", error);
       return false;
     }
-    
-    if (data.message && data.message === "Scan Complete!") {
-      updateStatusMessage("Scan completed successfully");
-      // Fetch new scores since the scan was successful
-      await fetchScoresAndUpdateUI();
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    updateStatusMessage(`Error during scan: ${error.message}`, true);
-    console.error("Error during scan:", error);
-    return false;
   }
-}
 
 // Function to update status message
 function updateStatusMessage(message, isError = false) {
@@ -339,69 +375,94 @@ function updateStatusMessage(message, isError = false) {
 
 // Function to toggle automatic scanning
 function toggleAutoScan() {
-  const autoScanButton = document.getElementById("autoScanButton");
-  
-  if (isScanning) {
-    // Stop automatic scanning
-    if (scanTimer) {
-      clearInterval(scanTimer);
-      scanTimer = null;
-    }
-    isScanning = false;
-    autoScanButton.textContent = "Start Auto-Scan";
-    autoScanButton.classList.remove("active");
-    updateStatusMessage("Auto-scan stopped");
-  } else {
-    // Start automatic scanning
-    isScanning = true;
-    autoScanButton.textContent = "Stop Auto-Scan";
-    autoScanButton.classList.add("active");
-    updateStatusMessage("Auto-scan started");
+    const autoScanButton = document.getElementById("autoScanButton");
     
-    // Perform an immediate scan
-    performScan();
-    
-    // Set up one-minute interval for scanning
-    scanTimer = setInterval(async () => {
-      if (isScanning) {
-        await performScan();
+    if (isScanning) {
+      // Stop automatic scanning
+      if (scanTimer) {
+        clearInterval(scanTimer);
+        scanTimer = null;
       }
-    }, 60000); // 60000 ms = 1 minute
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+      isScanning = false;
+      nextScanTime = null;
+      autoScanButton.textContent = "Start Auto-Scan";
+      autoScanButton.classList.remove("active");
+      updateStatusMessage("Auto-scan stopped");
+      
+      // Hide countdown
+      const countdownElement = document.getElementById("countdown");
+      if (countdownElement) {
+        countdownElement.textContent = "";
+      }
+    } else {
+      // Start automatic scanning
+      isScanning = true;
+      autoScanButton.textContent = "Stop Auto-Scan";
+      autoScanButton.classList.add("active");
+      updateStatusMessage("Auto-scan started");
+      
+      // Set next scan time
+      nextScanTime = new Date(Date.now() + 60000);
+      
+      // Perform an immediate scan
+      performScan();
+      
+      // Set up countdown timer to update every second
+      countdownTimer = setInterval(updateCountdownDisplay, 1000);
+      
+      // Set up one-minute interval for scanning
+      scanTimer = setInterval(async () => {
+        if (isScanning) {
+          // Reset next scan time
+          nextScanTime = new Date(Date.now() + 60000);
+          await performScan();
+        }
+      }, 60000); // 60000 ms = 1 minute
+    }
   }
-}
 
 // Function to create controls UI
 function createControls() {
-  const controlsContainer = document.createElement('div');
-  controlsContainer.className = 'controls-container';
-  
-  // Create manual scan button
-  const scanButton = document.createElement('button');
-  scanButton.id = "scanButton";
-  scanButton.className = "control-button";
-  scanButton.textContent = "Scan Now";
-  scanButton.addEventListener('click', performScan);
-  
-  // Create automatic scan toggle button
-  const autoScanButton = document.createElement('button');
-  autoScanButton.id = "autoScanButton";
-  autoScanButton.className = "control-button";
-  autoScanButton.textContent = "Start Auto-Scan";
-  autoScanButton.addEventListener('click', toggleAutoScan);
-  
-  // Create status message element
-  const statusMessage = document.createElement('div');
-  statusMessage.id = "statusMessage";
-  statusMessage.className = "status-message";
-  statusMessage.textContent = "Ready to scan";
-  
-  // Add buttons to container
-  controlsContainer.appendChild(scanButton);
-  controlsContainer.appendChild(autoScanButton);
-  controlsContainer.appendChild(statusMessage);
-  
-  return controlsContainer;
-}
+    const controlsContainer = document.createElement('div');
+    controlsContainer.className = 'controls-container';
+    
+    // Create manual scan button
+    const scanButton = document.createElement('button');
+    scanButton.id = "scanButton";
+    scanButton.className = "control-button";
+    scanButton.textContent = "Scan Now";
+    scanButton.addEventListener('click', performScan);
+    
+    // Create automatic scan toggle button
+    const autoScanButton = document.createElement('button');
+    autoScanButton.id = "autoScanButton";
+    autoScanButton.className = "control-button";
+    autoScanButton.textContent = "Start Auto-Scan";
+    autoScanButton.addEventListener('click', toggleAutoScan);
+    
+    // Create status message element
+    const statusMessage = document.createElement('div');
+    statusMessage.id = "statusMessage";
+    statusMessage.className = "status-message";
+    statusMessage.textContent = "Ready to scan";
+    
+    // Create countdown display element
+    const countdownDisplay = document.createElement('div');
+    countdownDisplay.id = "countdown";
+    countdownDisplay.className = "countdown-display";
+    
+    // Add all elements to container
+    controlsContainer.appendChild(scanButton);
+    controlsContainer.appendChild(autoScanButton);
+    controlsContainer.appendChild(statusMessage);
+    controlsContainer.appendChild(countdownDisplay);
+    
+    return controlsContainer;
+  }
 
 // Render all boxes
 function renderBoxes() {
@@ -453,3 +514,31 @@ function adjustLayout() {
 
 // Initialize the scoreboard when the page loads
 document.addEventListener('DOMContentLoaded', renderBoxes);
+
+let nextScanTime = null;
+let countdownTimer = null;
+
+// Function to update the countdown timer display
+function updateCountdownDisplay() {
+  if (!isScanning || !nextScanTime) {
+    return;
+  }
+  
+  const now = new Date();
+  const timeRemaining = Math.max(0, nextScanTime - now);
+  
+  const seconds = Math.floor((timeRemaining / 1000) % 60);
+  const minutes = Math.floor((timeRemaining / 1000 / 60) % 60);
+  
+  const countdownElement = document.getElementById("countdown");
+  if (countdownElement) {
+    countdownElement.textContent = `Next scan in: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Apply warning color when less than 10 seconds remaining
+    if (timeRemaining < 10000) {
+      countdownElement.classList.add("countdown-warning");
+    } else {
+      countdownElement.classList.remove("countdown-warning");
+    }
+  }
+}

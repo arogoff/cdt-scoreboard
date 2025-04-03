@@ -113,48 +113,50 @@ let scanTimer = null;
 
 // Function to create Minecraft-style hearts with more granular health representation
 function createHealthBar(healthValue) {
-  const healthContainer = document.createElement('div');
-  healthContainer.className = 'health';
-  
-  // Maximum health is 10.0, with each heart representing 1 health point
-  const maxHearts = 10;
-  const healthNum = parseFloat(healthValue);
-  const isCritical = healthNum <= 2.0 && healthNum > 0;
-  
-  for (let i = 0; i < maxHearts; i++) {
-    const heart = document.createElement('div');
-    heart.className = 'heart';
+    const healthContainer = document.createElement('div');
+    healthContainer.className = 'health';
+    // Store health value for comparison on updates
+    healthContainer.dataset.healthValue = healthValue;
     
-    // Add critical class to each heart if health is 2.0 or less
-    if (isCritical) {
-      heart.classList.add('critical');
+    // Maximum health is 10.0, with each heart representing 1 health point
+    const maxHearts = 10;
+    const healthNum = parseFloat(healthValue);
+    const isCritical = healthNum <= 2.0 && healthNum > 0;
+    
+    for (let i = 0; i < maxHearts; i++) {
+      const heart = document.createElement('div');
+      heart.className = 'heart';
+      
+      // Add critical class to each heart if health is 2.0 or less
+      if (isCritical) {
+        heart.classList.add('critical');
+      }
+      
+      // Each heart represents 1 health point
+      const remainingHealth = healthNum - i;
+      
+      if (remainingHealth >= 1) {
+        // Full heart (1.0+ points)
+        heart.style.backgroundImage = "url('assets/images/full_heart.png')";
+      } else if (remainingHealth >= 0.75) {
+        // Three-quarter heart (0.75 - 0.99 points)
+        heart.style.backgroundImage = "url('assets/images/three_quarter_heart.png')";
+      } else if (remainingHealth >= 0.5) {
+        // Half heart (0.5 - 0.74 points)
+        heart.style.backgroundImage = "url('assets/images/half_heart.png')";
+      } else if (remainingHealth >= 0.25) {
+        // Quarter heart (0.25 - 0.49 points)
+        heart.style.backgroundImage = "url('assets/images/quarter_heart.png')";
+      } else {
+        // Empty heart (0 - 0.24 points)
+        heart.style.backgroundImage = "url('assets/images/empty_heart.png')";
+      }
+      
+      healthContainer.appendChild(heart);
     }
     
-    // Each heart represents 1 health point
-    const remainingHealth = healthNum - i;
-    
-    if (remainingHealth >= 1) {
-      // Full heart (1.0+ points)
-      heart.style.backgroundImage = "url('assets/images/full_heart.png')";
-    } else if (remainingHealth >= 0.75) {
-      // Three-quarter heart (0.75 - 0.99 points)
-      heart.style.backgroundImage = "url('assets/images/three_quarter_heart.png')";
-    } else if (remainingHealth >= 0.5) {
-      // Half heart (0.5 - 0.74 points)
-      heart.style.backgroundImage = "url('assets/images/half_heart.png')";
-    } else if (remainingHealth >= 0.25) {
-      // Quarter heart (0.25 - 0.49 points)
-      heart.style.backgroundImage = "url('assets/images/quarter_heart.png')";
-    } else {
-      // Empty heart (0 - 0.24 points)
-      heart.style.backgroundImage = "url('assets/images/empty_heart.png')";
-    }
-    
-    healthContainer.appendChild(heart);
+    return healthContainer;
   }
-  
-  return healthContainer;
-}
 
 // Function to create a box element
  // Function to create a box element
@@ -251,13 +253,45 @@ function updateBoxElement(boxData) {
       stateIndicator.textContent = boxData.state;
     }
     
-    // Update health bar
+    // Update health bar with flash effect if health has changed
     const bottomInfo = boxElement.querySelector('.box-info-bottom');
     if (bottomInfo) {
       const oldHealthBar = bottomInfo.querySelector('.health');
       if (oldHealthBar) {
-        const newHealthBar = createHealthBar(boxData.health);
-        bottomInfo.replaceChild(newHealthBar, oldHealthBar);
+        // Get the current health value from the data attribute or default to current value
+        const oldHealthValue = oldHealthBar.dataset.healthValue || boxData.health;
+        const newHealthValue = boxData.health;
+        
+        // Check if health value has changed
+        if (oldHealthValue !== newHealthValue) {
+          // Create new health bar
+          const newHealthBar = createHealthBar(boxData.health);
+          // Store the new health value
+          newHealthBar.dataset.healthValue = newHealthValue;
+          
+          // Apply flash effect to all hearts 
+          const hearts = newHealthBar.querySelectorAll('.heart');
+          hearts.forEach(heart => {
+            // Add flash class to trigger animation
+            heart.classList.add('heart-flash');
+            
+            // Store original background image to restore after flash
+            const originalImage = heart.style.backgroundImage;
+            const whiteImageUrl = originalImage.replace('.png', '_white.png');
+            
+            // Set white version immediately
+            heart.style.backgroundImage = whiteImageUrl;
+            
+            // Set timeout to remove flash and restore original image
+            setTimeout(() => {
+              heart.style.backgroundImage = originalImage;
+              heart.classList.remove('heart-flash');
+            }, 300);
+          });
+          
+          // Replace old health bar with new one
+          bottomInfo.replaceChild(newHealthBar, oldHealthBar);
+        }
       }
       
       // Update service and IP info
@@ -266,7 +300,7 @@ function updateBoxElement(boxData) {
         serviceIP.textContent = `${boxData.service} - ${boxData.ip}`;
       }
     }
-  }
+}
 
 // Function to fetch scores data and update the UI
 async function fetchScoresAndUpdateUI() {

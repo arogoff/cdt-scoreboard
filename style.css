@@ -173,4 +173,14 @@ body {
   .heart.critical:nth-child(8) { animation-delay: 0.09s; }
   .heart.critical:nth-child(9) { animation-delay: 0.01s; }
   .heart.critical:nth-child(10) { animation-delay: 0.06s; }
+
+  @keyframes heartFlash {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+  
+  .heart-flash {
+    animation: heartFlash 0.3s ease-in-out;
+  }
   

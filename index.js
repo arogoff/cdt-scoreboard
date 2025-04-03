@@ -157,6 +157,12 @@ function createHealthBar(healthValue) {
         healthContainer.appendChild(heart);
     }
 
+    // Add health value text display
+    const healthText = document.createElement('span');
+    healthText.className = 'health-text';
+    healthText.textContent = healthValue + "/10";
+    healthContainer.appendChild(healthText);
+
     return healthContainer;
 }
 
